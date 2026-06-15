@@ -9,11 +9,18 @@ var builder = WebApplication.CreateBuilder(args);
 
 // ===== EF Core - SQL Server Database =====
 builder.Services.AddDbContext<ProjectDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlOptions => sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(30),
+            errorNumbersToAdd: null)
+    ));
 
 // ===== Dependency Injection =====
 builder.Services.AddSingleton<IEventPublisher, ConsoleEventPublisher>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
+builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IMemberService, MemberService>();
 builder.Services.AddScoped<ISprintService, SprintService>();
 builder.Services.AddScoped<IMilestoneService, MilestoneService>();
@@ -75,8 +82,17 @@ var app = builder.Build();
 // ===== Auto-create Database (if not exists) =====
 using (var scope = app.Services.CreateScope())
 {
-    var dbContext = scope.ServiceProvider.GetRequiredService<ProjectDbContext>();
-    dbContext.Database.EnsureCreated();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    try
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<ProjectDbContext>();
+        dbContext.Database.EnsureCreated();
+        logger.LogInformation("Database connection established successfully.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning("Could not connect to database on startup: {Message}. The app will continue running.", ex.Message);
+    }
 }
 
 // ===== OpenAPI endpoint =====
