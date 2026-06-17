@@ -77,7 +77,7 @@ namespace ProjectMemberService.Services
             return ApiResponse<List<ProjectResponseDto>>.Ok(result);
         }
 
-        public async Task<ApiResponse<ProjectDetailResponseDto>> GetByIdAsync(Guid id)
+        public async Task<ApiResponse<ProjectDetailResponseDto>> GetByIdAsync(Guid id, string userId)
         {
             var project = await _context.Projects
                 .Include(p => p.Members)
@@ -88,6 +88,12 @@ namespace ProjectMemberService.Services
             if (project == null)
             {
                 return ApiResponse<ProjectDetailResponseDto>.Fail("Không tìm thấy dự án");
+            }
+
+            var isAuthorized = await _permissionService.IsAuthorizedAsync(id, userId, MemberRole.Owner, MemberRole.Manager, MemberRole.Member, MemberRole.Viewer);
+            if (!isAuthorized)
+            {
+                return ApiResponse<ProjectDetailResponseDto>.Fail("Bạn không có quyền xem thông tin dự án này");
             }
 
             var response = new ProjectDetailResponseDto

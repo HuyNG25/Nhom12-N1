@@ -74,12 +74,18 @@ namespace ProjectMemberService.Services
             return ApiResponse<SprintResponseDto>.Ok(MapToResponse(sprint), "Tạo sprint thành công");
         }
 
-        public async Task<ApiResponse<List<SprintResponseDto>>> GetAllAsync(Guid projectId)
+        public async Task<ApiResponse<List<SprintResponseDto>>> GetAllAsync(Guid projectId, string userId)
         {
             var projectExists = await _context.Projects.AnyAsync(p => p.Id == projectId);
             if (!projectExists)
             {
                 return ApiResponse<List<SprintResponseDto>>.Fail("Không tìm thấy dự án");
+            }
+
+            var isAuthorized = await _permissionService.IsAuthorizedAsync(projectId, userId, MemberRole.Owner, MemberRole.Manager, MemberRole.Member, MemberRole.Viewer);
+            if (!isAuthorized)
+            {
+                return ApiResponse<List<SprintResponseDto>>.Fail("Bạn không có quyền xem danh sách sprint của dự án này");
             }
 
             var sprints = await _context.Sprints
@@ -91,7 +97,7 @@ namespace ProjectMemberService.Services
             return ApiResponse<List<SprintResponseDto>>.Ok(result);
         }
 
-        public async Task<ApiResponse<SprintResponseDto>> GetByIdAsync(Guid projectId, Guid sprintId)
+        public async Task<ApiResponse<SprintResponseDto>> GetByIdAsync(Guid projectId, Guid sprintId, string userId)
         {
             var sprint = await _context.Sprints
                 .FirstOrDefaultAsync(s => s.Id == sprintId && s.ProjectId == projectId);
@@ -99,6 +105,12 @@ namespace ProjectMemberService.Services
             if (sprint == null)
             {
                 return ApiResponse<SprintResponseDto>.Fail("Không tìm thấy sprint");
+            }
+
+            var isAuthorized = await _permissionService.IsAuthorizedAsync(projectId, userId, MemberRole.Owner, MemberRole.Manager, MemberRole.Member, MemberRole.Viewer);
+            if (!isAuthorized)
+            {
+                return ApiResponse<SprintResponseDto>.Fail("Bạn không có quyền xem thông tin sprint này");
             }
 
             return ApiResponse<SprintResponseDto>.Ok(MapToResponse(sprint));

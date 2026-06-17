@@ -22,15 +22,7 @@ namespace ProjectMemberService.Controllers
 
         private string GetUserId()
         {
-            var userId = User?.FindFirst("sub")?.Value
-                      ?? User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-
-            if (string.IsNullOrEmpty(userId))
-            {
-                userId = Request.Headers["X-User-Id"].FirstOrDefault() ?? "anonymous";
-            }
-
-            return userId;
+            return Request.Headers["X-User-Id"].FirstOrDefault() ?? "anonymous";
         }
 
         /// <summary>

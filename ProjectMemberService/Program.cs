@@ -1,25 +1,25 @@
-using System.Text;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using ProjectMemberService.Data;
 using ProjectMemberService.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ===== EF Core - SQL Server Database =====
+// Fix Npgsql DateTime: treat Unspecified as UTC (required for PostgreSQL)
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
+// ===== EF Core - PostgreSQL Database =====
 builder.Services.AddDbContext<ProjectDbContext>(options =>
-    options.UseSqlServer(
+    options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
-        sqlOptions => sqlOptions.EnableRetryOnFailure(
+        npgsqlOptions => npgsqlOptions.EnableRetryOnFailure(
             maxRetryCount: 5,
             maxRetryDelay: TimeSpan.FromSeconds(30),
-            errorNumbersToAdd: null)
+            errorCodesToAdd: null)
     ));
 
 // ===== Dependency Injection =====
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddSingleton<IEventPublisher, ConsoleEventPublisher>();
+builder.Services.AddSingleton<IEventPublisher, RabbitMqEventPublisher>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IMemberService, MemberService>();
@@ -33,36 +33,7 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
 
-// ===== JWT Authentication =====
-var jwtKey = builder.Configuration["Jwt:Key"] ?? "SuperSecretKey_ProjectMemberService_2024_DoNotShare!";
 
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuer = false,
-        ValidateAudience = false,
-        ValidateLifetime = false,
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
-    };
-
-    // Cho phép request không có token (dùng X-User-Id header để test)
-    options.Events = new JwtBearerEvents
-    {
-        OnAuthenticationFailed = context =>
-        {
-            return Task.CompletedTask;
-        }
-    };
-});
-
-builder.Services.AddAuthorization();
 
 // ===== Built-in OpenAPI (.NET 10) =====
 builder.Services.AddOpenApi();
@@ -80,37 +51,48 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// ===== Auto-create Database (if not exists) =====
+// ===== Startup: DB init + Seed =====
 using (var scope = app.Services.CreateScope())
 {
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     try
     {
         var dbContext = scope.ServiceProvider.GetRequiredService<ProjectDbContext>();
+
+        // Reset DB nếu được yêu cầu (chỉ Development)
+        if (builder.Environment.IsDevelopment() &&
+            Environment.GetEnvironmentVariable("RESET_DB") == "true")
+        {
+            logger.LogWarning("RESET_DB=true — Đang xóa và tạo lại database...");
+            dbContext.Database.EnsureDeleted();
+        }
+
         dbContext.Database.EnsureCreated();
         logger.LogInformation("Database connection established successfully.");
+
+
     }
     catch (Exception ex)
     {
-        logger.LogWarning("Could not connect to database on startup: {Message}. The app will continue running.", ex.Message);
+        logger.LogWarning("Startup error: {Message}. The app will continue running.", ex.Message);
     }
 }
 
-// ===== OpenAPI endpoint =====
+// ===== Middleware Pipeline =====
 app.MapOpenApi();
 
-// ===== Swagger UI =====
+// Swagger UI với JWT Bearer support
 app.UseSwaggerUI(options =>
 {
     options.SwaggerEndpoint("/openapi/v1.json", "Project & Member Service API v1");
     options.RoutePrefix = "swagger";
-    options.DocumentTitle = "Project & Member Service - Swagger UI";
+    options.DocumentTitle = "N1 - Project & Member Service API";
+    options.InjectStylesheet("/swagger-custom.css");
 });
 
 app.UseCors("AllowAll");
 
-app.UseAuthentication();
-app.UseAuthorization();
+
 
 app.MapControllers();
 

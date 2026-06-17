@@ -18,15 +18,7 @@ namespace ProjectMemberService.Controllers
 
         private string GetUserId()
         {
-            var userId = User?.FindFirst("sub")?.Value
-                      ?? User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-
-            if (string.IsNullOrEmpty(userId))
-            {
-                userId = Request.Headers["X-User-Id"].FirstOrDefault() ?? "anonymous";
-            }
-
-            return userId;
+            return Request.Headers["X-User-Id"].FirstOrDefault() ?? "anonymous";
         }
 
         /// <summary>
@@ -54,7 +46,8 @@ namespace ProjectMemberService.Controllers
         [ProducesResponseType(typeof(ApiResponse<List<SprintResponseDto>>), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetAll(Guid projectId)
         {
-            var result = await _sprintService.GetAllAsync(projectId);
+            var userId = GetUserId();
+            var result = await _sprintService.GetAllAsync(projectId, userId);
 
             if (!result.Success)
                 return NotFound(result);
@@ -70,7 +63,8 @@ namespace ProjectMemberService.Controllers
         [ProducesResponseType(typeof(ApiResponse<SprintResponseDto>), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetById(Guid projectId, Guid sprintId)
         {
-            var result = await _sprintService.GetByIdAsync(projectId, sprintId);
+            var userId = GetUserId();
+            var result = await _sprintService.GetByIdAsync(projectId, sprintId, userId);
 
             if (!result.Success)
                 return NotFound(result);

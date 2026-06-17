@@ -22,17 +22,7 @@ namespace ProjectMemberService.Controllers
         /// </summary>
         private string GetUserId()
         {
-            // Ưu tiên lấy từ JWT claims
-            var userId = User?.FindFirst("sub")?.Value
-                      ?? User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-
-            // Fallback: lấy từ custom header (dùng cho dev/test)
-            if (string.IsNullOrEmpty(userId))
-            {
-                userId = Request.Headers["X-User-Id"].FirstOrDefault() ?? "anonymous";
-            }
-
-            return userId;
+            return Request.Headers["X-User-Id"].FirstOrDefault() ?? "anonymous";
         }
 
         /// <summary>
@@ -73,7 +63,8 @@ namespace ProjectMemberService.Controllers
         [ProducesResponseType(typeof(ApiResponse<ProjectDetailResponseDto>), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetById(Guid id)
         {
-            var result = await _projectService.GetByIdAsync(id);
+            var userId = GetUserId();
+            var result = await _projectService.GetByIdAsync(id, userId);
 
             if (!result.Success)
                 return NotFound(result);

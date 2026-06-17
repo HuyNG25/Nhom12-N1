@@ -1,6 +1,15 @@
 version: '3.8'
 
 services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq-broker
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - project-network
+
   project-member-service:
     build:
       context: ./ProjectMemberService
@@ -13,6 +22,11 @@ services:
       - Jwt__Key=SuperSecretKey_ProjectMemberService_2024_DoNotShare!
       - Jwt__Issuer=ProjectMemberService
       - Jwt__Audience=ProjectMemberServiceClient
+      - ConnectionStrings__DefaultConnection=Host=host.docker.internal;Database=ProjectDB;Username=postgres;Password=03092005Ah;Port=5432
+      - RabbitMq__Host=rabbitmq
+      - RESET_DB=false
+    depends_on:
+      - rabbitmq
     restart: unless-stopped
     networks:
       - project-network
