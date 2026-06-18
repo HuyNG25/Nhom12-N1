@@ -41,31 +41,7 @@ namespace ProjectMemberService.Services
                 return false;
             }
 
-            // 1. Check HttpContext for JWT Claims or Custom Headers
-            var httpContext = _httpContextAccessor.HttpContext;
-            if (httpContext != null)
-            {
-                // Check X-User-Role header
-                var roleHeader = httpContext.Request.Headers["X-User-Role"].FirstOrDefault();
-                if (string.Equals(roleHeader, "Admin", StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-
-                // Check Claims (JWT)
-                var user = httpContext.User;
-                if (user != null)
-                {
-                    if (user.IsInRole("Admin") || 
-                        user.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value == "Admin" ||
-                        user.FindFirst("role")?.Value == "Admin")
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            // 2. Check Database (SystemAdmins table)
+            // Chỉ tra cứu trong bảng SystemAdmins của N1 để tránh lỗi từ phía N3 / Frontend truyền sai Header
             return await _context.SystemAdmins.AnyAsync(a => a.UserId == userId);
         }
     }
