@@ -59,9 +59,8 @@ using (var scope = app.Services.CreateScope())
     {
         var dbContext = scope.ServiceProvider.GetRequiredService<ProjectDbContext>();
 
-        // Reset DB nếu được yêu cầu (chỉ Development)
-        if (builder.Environment.IsDevelopment() &&
-            Environment.GetEnvironmentVariable("RESET_DB") == "true")
+        // Reset DB nếu được yêu cầu (kể cả Production để test dễ dàng)
+        if (Environment.GetEnvironmentVariable("RESET_DB") == "true")
         {
             logger.LogWarning("RESET_DB=true — Đang xóa và tạo lại database...");
             dbContext.Database.EnsureDeleted();
