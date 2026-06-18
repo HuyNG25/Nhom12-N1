@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using ProjectMemberService.DTOs;
+using ProjectMemberService.Models;
 using ProjectMemberService.Services;
 
 namespace ProjectMemberService.Controllers
@@ -87,6 +88,35 @@ namespace ProjectMemberService.Controllers
                 return BadRequest(result);
 
             return Ok(result);
+        }
+
+        /// <summary>
+        /// N3 gọi API này để kiểm tra role của một user trong project
+        /// Trả về 403 nếu không có trong dự án. Trả về Int Role (0=Owner, 1=Manager, 2=Member, 3=Viewer)
+        /// </summary>
+        [HttpGet("{userId}/role-check")]
+        [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> CheckRole(Guid projectId, string userId)
+        {
+            // Inject _permissionService from DI directly or we can just use _memberService if it has a way.
+            // Wait, we need IPermissionService to get the member. We don't have it in the constructor of MembersController.
+            // I'll get it from HttpContext.RequestServices
+            var permissionService = HttpContext.RequestServices.GetRequiredService<IPermissionService>();
+            
+            var isSystemAdmin = await permissionService.IsSystemAdminAsync(userId);
+            if (isSystemAdmin)
+            {
+                return Ok((int)MemberRole.Owner); // Admin has Owner privileges implicitly
+            }
+
+            var member = await permissionService.GetMemberAsync(projectId, userId);
+            if (member == null)
+            {
+                return StatusCode(403, "User không thuộc dự án này");
+            }
+
+            return Ok((int)member.Role);
         }
     }
 }

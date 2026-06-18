@@ -11,6 +11,7 @@ namespace ProjectMemberService.Data
         public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
         public DbSet<Sprint> Sprints => Set<Sprint>();
         public DbSet<Milestone> Milestones => Set<Milestone>();
+        public DbSet<SystemAdmin> SystemAdmins => Set<SystemAdmin>();
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -75,6 +76,14 @@ namespace ProjectMemberService.Data
 
 
 
+            // SystemAdmin
+            modelBuilder.Entity<SystemAdmin>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.UserId).IsRequired().HasMaxLength(200);
+                entity.HasIndex(e => e.UserId).IsUnique();
+            });
+
             // ===================================================================
             // SEED DATA - 20 users, 1 Project, phân quyền đầy đủ
             // ===================================================================
@@ -115,10 +124,10 @@ namespace ProjectMemberService.Data
                 };
 
             // 1 OWNER - điều hành toàn bộ
-            members.Add(Make("owner_1",   "Nguyễn Văn An (Owner)",    "owner1@project.dev",    MemberRole.Owner));
+            members.Add(Make("admin",   "Nguyễn Văn Admin",    "admin@gmail.com",    MemberRole.Owner));
 
             // 6 MANAGERS - quản lý, sửa, tạo sprint, quản lý thành viên
-            members.Add(Make("manager_1", "Trần Thị Bình (Manager)",  "manager1@project.dev",  MemberRole.Manager));
+            members.Add(Make("duymanh", "Nguyễn Duy Mạnh",  "manh.nguyen@gmail.com",  MemberRole.Manager));
             members.Add(Make("manager_2", "Lê Minh Châu (Manager)",   "manager2@project.dev",  MemberRole.Manager));
             members.Add(Make("manager_3", "Phạm Thùy Dung (Manager)", "manager3@project.dev",  MemberRole.Manager));
             members.Add(Make("manager_4", "Hoàng Đức Em (Manager)",   "manager4@project.dev",  MemberRole.Manager));
@@ -126,7 +135,7 @@ namespace ProjectMemberService.Data
             members.Add(Make("manager_6", "Đặng Quốc Gia (Manager)",  "manager6@project.dev",  MemberRole.Manager));
 
             // 7 MEMBERS - xem project, xem sprint, làm việc
-            members.Add(Make("member_1",  "Bùi Thị Hoa (Member)",    "member1@project.dev",   MemberRole.Member));
+            members.Add(Make("tranailinh",  "Trần Ái Linh",    "linh.tran@gmail.com",   MemberRole.Member));
             members.Add(Make("member_2",  "Ngô Văn Hùng (Member)",   "member2@project.dev",   MemberRole.Member));
             members.Add(Make("member_3",  "Đinh Thị Iris (Member)",  "member3@project.dev",   MemberRole.Member));
             members.Add(Make("member_4",  "Cao Văn Kiên (Member)",   "member4@project.dev",   MemberRole.Member));
@@ -143,6 +152,14 @@ namespace ProjectMemberService.Data
             members.Add(Make("viewer_6",  "Kiều Thị Tuyết (Viewer)", "viewer6@project.dev",   MemberRole.Viewer));
 
             modelBuilder.Entity<ProjectMember>().HasData(members);
+
+            // ----- SYSTEM ADMIN -----
+            modelBuilder.Entity<SystemAdmin>().HasData(new SystemAdmin
+            {
+                Id = new Guid("d1000000-0000-0000-0000-000000000001"),
+                UserId = "admin",
+                CreatedAt = Utc(2026, 1, 1)
+            });
 
             // ----- 2 DEMO SPRINTS -----
             modelBuilder.Entity<Sprint>().HasData(

@@ -34,26 +34,25 @@ namespace ProjectMemberService.Services
                 .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.UserId == userId);
         }
 
-        public Task<bool> IsSystemAdminAsync(string userId)
+        public async Task<bool> IsSystemAdminAsync(string userId)
         {
-            // 1. Fallback: check if userId is admin
-            if (!string.IsNullOrEmpty(userId) && userId.Equals("admin", StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrEmpty(userId))
             {
-                return Task.FromResult(true);
+                return false;
             }
 
-            // 2. Check HttpContext
+            // 1. Check HttpContext for JWT Claims or Custom Headers
             var httpContext = _httpContextAccessor.HttpContext;
             if (httpContext != null)
             {
-                // Check testing custom header
+                // Check X-User-Role header
                 var roleHeader = httpContext.Request.Headers["X-User-Role"].FirstOrDefault();
                 if (string.Equals(roleHeader, "Admin", StringComparison.OrdinalIgnoreCase))
                 {
-                    return Task.FromResult(true);
+                    return true;
                 }
 
-                // Check claims
+                // Check Claims (JWT)
                 var user = httpContext.User;
                 if (user != null)
                 {
@@ -61,12 +60,13 @@ namespace ProjectMemberService.Services
                         user.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value == "Admin" ||
                         user.FindFirst("role")?.Value == "Admin")
                     {
-                        return Task.FromResult(true);
+                        return true;
                     }
                 }
             }
 
-            return Task.FromResult(false);
+            // 2. Check Database (SystemAdmins table)
+            return await _context.SystemAdmins.AnyAsync(a => a.UserId == userId);
         }
     }
 }
