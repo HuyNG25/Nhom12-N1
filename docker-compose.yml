@@ -8,6 +8,18 @@ services:
     networks:
       - n1-project-network
 
+  n1-postgres:
+    image: postgres:15-alpine
+    container_name: n1-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 03092005Ah
+      POSTGRES_DB: ProjectDB
+    volumes:
+      - n1-postgres-data:/var/lib/postgresql/data
+    networks:
+      - n1-project-network
+
   n1-project-member-service:
     build:
       context: ./ProjectMemberService
@@ -20,13 +32,14 @@ services:
       - Jwt__Key=SuperSecretKey_ProjectMemberService_2024_DoNotShare!
       - Jwt__Issuer=ProjectMemberService
       - Jwt__Audience=ProjectMemberServiceClient
-      - ConnectionStrings__DefaultConnection=Host=host.docker.internal;Database=ProjectDB;Username=postgres;Password=03092005Ah;Port=5432
+      - ConnectionStrings__DefaultConnection=Host=n1-postgres;Database=ProjectDB;Username=postgres;Password=03092005Ah;Port=5432
       - RabbitMq__Host=n1-rabbitmq
-      - RESET_DB=false
+      - RESET_DB=true
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
       - n1-rabbitmq
+      - n1-postgres
     restart: unless-stopped
     networks:
       - n1-project-network
@@ -34,3 +47,6 @@ services:
 networks:
   n1-project-network:
     driver: bridge
+
+volumes:
+  n1-postgres-data:
