@@ -16,7 +16,7 @@ services:
       POSTGRES_PASSWORD: 03092005Ah
       POSTGRES_DB: ProjectDB
     volumes:
-      - n1-postgres-data:/var/lib/postgresql/data
+      - n1-postgres-data-v2:/var/lib/postgresql/data
     networks:
       - n1-project-network
 
@@ -49,4 +49,4 @@ networks:
     driver: bridge
 
 volumes:
-  n1-postgres-data:
+  n1-postgres-data-v2:
